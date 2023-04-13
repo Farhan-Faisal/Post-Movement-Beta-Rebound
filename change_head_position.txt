@@ -1,0 +1,144 @@
+plan: 
+1) dump hlc channels for each run
+2) read in hlc data, compute mean
+3) multiply means by 100
+4) construct commands to changeheadpos
+
+
+foreach run (lhand rhand)
+ds2txt \
+-c HLC0011 \
+-c HLC0012 \
+-c HLC0013 \
+-c HLC0021 \
+-c HLC0022 \
+-c HLC0023 \
+-c HLC0031 \
+-c HLC0032 \
+-c HLC0033 \
+-c Na \
+-c Le \
+-c Re \
+-x \
+cue_onset_${run}.ds  
+sed '1d' cue_onset_${run}.dat > temp.txt
+mv temp.txt cue_onset_${run}.dat
+end
+
+
+#' to load in matlab'
+
+run ~/startup.m
+clear all
+mot = dlmread('cue_onset_rhand.dat',' ');
+na = mot(:,11)'*100;
+le = mot(:,12)'*100;
+re = mot(:,13)'*100;
+dna = na - mean(na);
+dle = le - mean(le);
+dre = re - mean(re);
+runlength = length(re)/3;
+runtimes = runlength:runlength:runlength.*2;
+
+
+figure
+subplot(3,1,1)
+plot(dna);
+%set(gca,'YLim',[-3 3])
+subplot(3,1,2)
+plot(dle);
+subplot(3,1,3)
+plot(dre);
+vline(runtimes);
+
+
+
+columns are:
+Time    HLC0011 HLC0012 HLC0013 HLC0021 HLC0022 HLC0023 HLC0031 HLC0032 HLC0033 Na      Le      Re
+
+%%%python script to generate commands to change headpos
+
+import matplotlib
+import os
+import pylab
+from pylab import *
+import numpy
+
+outlines = []
+runs = ['lhand']
+for run in runs:
+infilename = 'cue_onset_' + run + '.dat'
+thisdat = numpy.loadtxt(infilename)
+nax = round((mean(thisdat[:,1])*100),4)
+nay = round((mean(thisdat[:,2])*100),4)
+naz = round((mean(thisdat[:,3])*100),4)
+lex = round((mean(thisdat[:,4])*100),4)
+ley = round((mean(thisdat[:,5])*100),4)
+lez = round((mean(thisdat[:,6])*100),4)
+rex = round((mean(thisdat[:,7])*100),4)
+rey = round((mean(thisdat[:,8])*100),4)
+rez = round((mean(thisdat[:,9])*100),4) 
+outstr = ('changeHeadPos -na ' + str(nax) + ' ' + str(nay) + ' ' + str(naz) 
++ ' -le ' + str(lex) + ' ' + str(ley) + ' ' + str(lez)
++ ' -re ' + str(rex) + ' ' + str(rey) + ' ' + str(rez) + ' cue_onset_' + str(run) + '.ds\n')
+outlines.append(outstr)
+
+outfile = open('headposcommands_lhand.txt','w')
+outfile.writelines(outlines)  
+outfile.close()
+
+import matplotlib
+import os
+import pylab
+from pylab import *
+import numpy
+
+outlines = []
+runs = ['rhand']
+for run in runs:
+infilename = 'cue_onset_' + run + '.dat'
+thisdat = numpy.loadtxt(infilename)
+nax = round((mean(thisdat[:,1])*100),4)
+nay = round((mean(thisdat[:,2])*100),4)
+naz = round((mean(thisdat[:,3])*100),4)
+lex = round((mean(thisdat[:,4])*100),4)
+ley = round((mean(thisdat[:,5])*100),4)
+lez = round((mean(thisdat[:,6])*100),4)
+rex = round((mean(thisdat[:,7])*100),4)
+rey = round((mean(thisdat[:,8])*100),4)
+rez = round((mean(thisdat[:,9])*100),4) 
+outstr = ('changeHeadPos -na ' + str(nax) + ' ' + str(nay) + ' ' + str(naz) 
++ ' -le ' + str(lex) + ' ' + str(ley) + ' ' + str(lez)
++ ' -re ' + str(rex) + ' ' + str(rey) + ' ' + str(rez) + ' cue_onset_' + str(run) + '.ds\n')
+outlines.append(outstr)
+
+outfile = open('headposcommands_rhand.txt','w')
+outfile.writelines(outlines)  
+outfile.close()
+
+#' Now you must actually RUN the commands by copying and pasting (or executing them)'
+
+&&&&&&&&&&&&&&&&&&&&&&&&&&&
+
+##If the dataset has nominal head positions, you must run this command.
+foreach run(01 03 04 05 06 07 08)
+modobject -ds sentrun_${run}.ds -attr NOMINALHCPOSITIONS 0
+end
+
+
+#'#####For correcting head position (not well tested)'
+#' We never got this working but it's here for reference'
+
+grandDs \
+sentrun_01.ds \
+sentrun_02.ds \
+sentrun_03.ds \
+sentrun_04.ds \
+sentrun_05.ds \
+sentrun_06.ds \
+sentrun_07.ds \
+sentrun_grand.ds
+
+
+correctHeadMotionDs -ls 24 sentrun_grand.ds sentrun_grandmc.ds
+
